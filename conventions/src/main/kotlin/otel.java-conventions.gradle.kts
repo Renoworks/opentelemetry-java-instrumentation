@@ -143,7 +143,7 @@ abstract class NettyAlignmentRule : ComponentMetadataRule {
     with(ctx.details) {
       if (id.group == "io.netty" && id.name != "netty") {
         if (id.version.startsWith("4.1.")) {
-          belongsTo("io.netty:netty-bom:4.1.118.Final", false)
+          belongsTo("io.netty:netty-bom:4.1.119.Final", false)
         } else if (id.version.startsWith("4.0.")) {
           belongsTo("io.netty:netty-bom:4.0.56.Final", false)
         }
@@ -161,7 +161,7 @@ dependencies {
   compileOnly("com.google.errorprone:error_prone_annotations")
 
   codenarc("org.codenarc:CodeNarc:3.6.0")
-  codenarc(platform("org.codehaus.groovy:groovy-bom:3.0.23"))
+  codenarc(platform("org.codehaus.groovy:groovy-bom:3.0.24"))
 
   modules {
     // checkstyle uses the very old google-collections which causes Java 9 module conflict with
