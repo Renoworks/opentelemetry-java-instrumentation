@@ -5,6 +5,7 @@
 
 package io.opentelemetry.instrumentation.logback.appender.v1_0.internal;
 
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static java.util.Collections.emptyList;
 
 import ch.qos.logback.classic.Level;
@@ -52,6 +53,8 @@ public final class LoggingEventMapper {
   private static final AttributeKey<Long> CODE_LINENO = AttributeKey.longKey("code.lineno");
   private static final AttributeKey<String> CODE_NAMESPACE =
       AttributeKey.stringKey("code.namespace");
+  public static final AttributeKey<String> CODE_STACKTRACE = stringKey("code.stacktrace");
+
   // copied from
   private static final AttributeKey<Long> THREAD_ID = AttributeKey.longKey("thread.id");
   private static final AttributeKey<String> THREAD_NAME = AttributeKey.stringKey("thread.name");
@@ -169,6 +172,11 @@ public final class LoggingEventMapper {
         if (lineNumber > 0) {
           attributes.put(CODE_LINENO, lineNumber);
         }
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : callerData) {
+          sb.append("\tat ").append(element).append("\n");
+        }
+        attributes.put(CODE_STACKTRACE, sb.toString());
       }
     }
 
