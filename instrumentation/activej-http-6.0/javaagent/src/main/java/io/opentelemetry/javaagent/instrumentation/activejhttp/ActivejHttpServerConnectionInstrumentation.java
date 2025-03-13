@@ -17,9 +17,11 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import io.activej.http.AsyncServlet;
+import io.activej.http.HttpHeaders;
 import io.activej.http.HttpRequest;
 import io.activej.http.HttpResponse;
 import io.activej.promise.Promise;
+import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
@@ -72,7 +74,7 @@ public class ActivejHttpServerConnectionInstrumentation implements TypeInstrumen
     public static void methodExit(
         @Advice.This AsyncServlet asyncServlet,
         @Advice.Return(readOnly = false) Promise<HttpResponse> responsePromise,
-        @Advice.Thrown Throwable throwable,
+        @Advice.Thrown(readOnly = false) Throwable throwable,
         @Advice.Local("otelContext") Context context,
         @Advice.Local("otelScope") Scope scope,
         @Advice.Local("httpRequest") HttpRequest httpRequest) {
@@ -80,10 +82,24 @@ public class ActivejHttpServerConnectionInstrumentation implements TypeInstrumen
         return;
       }
       scope.close();
+
+      String traceId = Span.fromContext(context).getSpanContext().getTraceId();
+      String spanId = Span.fromContext(context).getSpanContext().getSpanId();
+      String traceFlags =
+          Span.fromContext(context).getSpanContext().getTraceFlags().asHex().substring(0, 2);
+      String traceparent = String.format("00-%s-%s-%s", traceId, spanId, traceFlags);
       if (throwable != null) {
-        instrumenter().end(context, httpRequest, null, throwable);
+        HttpResponse httpResponse =
+            HttpResponse.builder()
+                .withCode(500)
+                .withPlainText(throwable.getMessage())
+                .withHeader(HttpHeaders.of("traceparent"), traceparent)
+                .build();
+        instrumenter().end(context, httpRequest, httpResponse, throwable);
+        responsePromise = Promise.of(httpResponse);
+        throwable = null;
       } else {
-        responsePromise = PromiseWrapper.wrap(responsePromise, httpRequest, context);
+        responsePromise = PromiseWrapper.wrap(responsePromise, httpRequest, context, traceparent);
       }
     }
   }
