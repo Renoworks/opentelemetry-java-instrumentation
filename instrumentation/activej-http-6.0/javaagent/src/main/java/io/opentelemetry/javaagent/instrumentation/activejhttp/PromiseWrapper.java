@@ -14,23 +14,23 @@ import io.activej.http.HttpHeaders;
 import io.activej.http.HttpRequest;
 import io.activej.http.HttpResponse;
 import io.activej.promise.Promise;
+import io.activej.promise.SettablePromise;
 import io.opentelemetry.context.Context;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public final class PromiseWrapper {
 
   public static Promise<HttpResponse> wrap(
       Promise<HttpResponse> promise, HttpRequest httpRequest, Context context, String traceparent) {
+    SettablePromise<HttpResponse> futureResponse = new SettablePromise<>();
     if (promise != null) {
-      AtomicReference<HttpResponse> response = new AtomicReference<>();
       promise.whenComplete(
           (httpResponse, exception) -> {
             httpResponse = createResponse(exception, traceparent, httpResponse);
             instrumenter().end(context, httpRequest, httpResponse, exception);
-            response.set(httpResponse);
+            futureResponse.set(httpResponse);
           });
-      return Promise.of(response.get());
+      return futureResponse;
     } else {
       HttpResponse httpResponse =
           HttpResponse.notFound404().withHeader(HttpHeaders.of("traceparent"), traceparent).build();
